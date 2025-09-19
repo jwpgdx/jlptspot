@@ -58,6 +58,28 @@ app.post("/api/stop-monitoring", (req, res) => {
   res.json({ message: "모니터링이 중지되었습니다." });
 });
 
+// 자동 모니터링 시작 (프로덕션 환경에서)
+if (process.env.NODE_ENV === 'production') {
+  // 환경변수에서 설정값 읽기
+  const cookie = process.env.COOKIE;
+  const telegramToken = process.env.TELEGRAM_TOKEN;
+  const telegramChat = process.env.TELEGRAM_CHAT;
+  
+  if (cookie && telegramToken && telegramChat) {
+    // 쿠키 설정
+    jlptMonitor.headers.Cookie = cookie;
+    
+    // 텔레그램 설정
+    jlptMonitor.setTelegramConfig(telegramToken, telegramChat);
+    
+    // 모니터링 시작
+    jlptMonitor.startMonitoring(['15'], 'N2');
+    logger.info("프로덕션 환경에서 자동 모니터링 시작됨");
+  } else {
+    logger.warn("환경변수가 설정되지 않아 자동 모니터링을 시작할 수 없습니다");
+  }
+}
+
 // 크론 작업 설정 (매 30초마다 확인)
 cron.schedule("*/30 * * * * *", () => {
   if (jlptMonitor.isMonitoring()) {
