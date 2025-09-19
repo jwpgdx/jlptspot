@@ -1,0 +1,23 @@
+name: Health Check
+
+on:
+  schedule:
+    # 5분마다 헬스체크
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check service health
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.RENDER_URL }}/api/status")
+          if [ $response -eq 200 ]; then
+            echo "Service is healthy"
+          else
+            echo "Service might be sleeping, attempting to wake up"
+            curl -X GET "${{ secrets.RENDER_URL }}" || echo "Failed to wake up service"
+          fi
+        env:
+          RENDER_URL: ${{ secrets.RENDER_URL }}

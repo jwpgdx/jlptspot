@@ -40,6 +40,17 @@ app.get("/api/status", (req, res) => {
     monitoredRegions: config.monitoredRegions,
     lastCheck: jlptMonitor.getLastCheckTime(),
     notifications: jlptMonitor.getNotifications(),
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 헬스체크 엔드포인트 (GitHub Actions용)
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
   });
 });
 
