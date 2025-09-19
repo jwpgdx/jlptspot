@@ -8,7 +8,7 @@
     "dev": "nodemon app.js",
     "headless": "node headless.js",
     "monitor": "node headless.js --regions=15 --level=N2 --interval=15 --year=2025 --times=2 --cookie=\"PHPSESSID=catpoa3cvsv1eenbqmncpkelje; nowdays=read_2025-09-19; pop=NO\" --telegram-token=\"8078482638:AAFJDMfo-UaKj1-AaJAsAvolEtBic_PTDS0\" --telegram-chat=\"6632560721\"",
-    "monitor:prod": "node headless.js --regions=15 --level=N2 --interval=30 --year=2025 --times=2 --cookie=\"$COOKIE\" --telegram-token=\"$TELEGRAM_TOKEN\" --telegram-chat=\"$TELEGRAM_CHAT\""
+    "monitor:prod": "node headless.js --regions=15 --level=N2 --interval=60 --year=2025 --times=2 --cookie=\"$COOKIE\" --telegram-token=\"$TELEGRAM_TOKEN\" --telegram-chat=\"$TELEGRAM_CHAT\""
   },
   "dependencies": {
     "axios": "^1.6.0",

@@ -80,8 +80,8 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// 크론 작업 설정 (매 30초마다 확인)
-cron.schedule("*/30 * * * * *", () => {
+// 크론 작업 설정 (매 60초마다 확인 - 안전한 주기)
+cron.schedule("0 */1 * * * *", () => {
   if (jlptMonitor.isMonitoring()) {
     logger.info("접수현황 확인 중...");
     jlptMonitor.checkAvailability();
