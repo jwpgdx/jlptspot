@@ -1,10 +1,11 @@
 const express = require("express");
 const cron = require("node-cron");
 const winston = require("winston");
-const JlptMonitor = require("./src/jlptMonitor");
-const config = require("./config/config");
+const AttendanceChecker = require("./src/AttendanceChecker");
+const Notifier = require("./src/notifier");
+require("dotenv").config();
 
-// 로거 설정
+// Logger Config
 const logger = winston.createLogger({
   level: "info",
   format: winston.format.combine(
@@ -15,102 +16,69 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console(),
-    new winston.transports.File({ filename: "logs/jlpt-monitor.log" }),
+    new winston.transports.File({ filename: "logs/attendance.log" }),
   ],
 });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// JLPT 모니터 인스턴스 생성
-const jlptMonitor = new JlptMonitor(logger);
-
-// Express 미들웨어
-app.use(express.json());
-app.use(express.static("public"));
-
-// 라우트
-app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/public/index.html");
-});
-
-app.get("/api/status", (req, res) => {
-  res.json({
-    status: "running",
-    monitoredRegions: config.monitoredRegions,
-    lastCheck: jlptMonitor.getLastCheckTime(),
-    notifications: jlptMonitor.getNotifications(),
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString()
-  });
-});
-
-// 헬스체크 엔드포인트 (GitHub Actions용)
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
-
-app.post("/api/start-monitoring", (req, res) => {
-  const { regions, level } = req.body;
-  if (regions && level) {
-    jlptMonitor.startMonitoring(regions, level);
-    res.json({ message: "모니터링이 시작되었습니다." });
-  } else {
-    res.status(400).json({ error: "지역과 레벨을 지정해주세요." });
-  }
-});
-
-app.post("/api/stop-monitoring", (req, res) => {
-  jlptMonitor.stopMonitoring();
-  res.json({ message: "모니터링이 중지되었습니다." });
-});
-
-// 자동 모니터링 시작 (프로덕션 환경에서)
-if (process.env.NODE_ENV === 'production') {
-  // 환경변수에서 설정값 읽기
-  const cookie = process.env.COOKIE;
-  const telegramToken = process.env.TELEGRAM_TOKEN;
-  const telegramChat = process.env.TELEGRAM_CHAT;
-  
-  if (cookie && telegramToken && telegramChat) {
-    // 쿠키 설정
-    jlptMonitor.headers.Cookie = cookie;
-    
-    // 텔레그램 설정
-    jlptMonitor.setTelegramConfig(telegramToken, telegramChat);
-    
-    // 모니터링 시작
-    jlptMonitor.startMonitoring(['15'], 'N2');
-    logger.info("프로덕션 환경에서 자동 모니터링 시작됨");
-  } else {
-    logger.warn("환경변수가 설정되지 않아 자동 모니터링을 시작할 수 없습니다");
-  }
+// Initialize Services
+const notifier = new Notifier(logger);
+// Attempt to load telegram config from Env
+const telegramToken = process.env.TELEGRAM_TOKEN;
+const telegramChat = process.env.TELEGRAM_CHAT;
+if (telegramToken && telegramChat) {
+  notifier.setTelegramConfig(telegramToken, telegramChat);
+} else {
+  logger.warn("TELEGRAM_TOKEN or TELEGRAM_CHAT not set in .env");
 }
 
-// 크론 작업 설정 (매 60초마다 확인 - 안전한 주기)
-cron.schedule("0 */1 * * * *", () => {
-  if (jlptMonitor.isMonitoring()) {
-    logger.info("접수현황 확인 중...");
-    jlptMonitor.checkAvailability();
-  }
+const checker = new AttendanceChecker(logger, notifier);
+
+// Middleware
+app.use(express.json());
+
+// Routes
+app.get("/", (req, res) => {
+  res.send("Attendance Check Service Running");
 });
 
-// 서버 시작
+app.get("/api/run-check", async (req, res) => {
+  logger.info("Manual check triggered via API");
+  // Run in background
+  checker.runAll().catch(err => logger.error(`Manual check failed: ${err.message}`));
+  res.json({ message: "Attendance check started in background." });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
+
+// Schedule: Daily at 09:00 AM
+cron.schedule("0 9 * * *", () => {
+  logger.info("Scheduled daily check started");
+  checker.runAll();
+});
+
+// Run on startup (optional, user asked for "check when server starts" implies immediate check or just ready)
+// User said: "서버는 기존에 사용하던거랑 출석체크 완료하면 완료된것들 텔레그램으로 알람줄수있게"
+// And usually such services might want to check once on boot to ensure nothing missed, 
+// OR just rely on schedule. 
+// I will verify if I should run on start. 
+// Let's add a small delay and run on start if configured, or just rely on manual/schedule.
+// For now, I'll logging that it's ready.
+
 app.listen(PORT, () => {
-  logger.info(`JLPT 모니터 서버가 포트 ${PORT}에서 실행 중입니다.`);
-  logger.info(`웹 인터페이스: http://localhost:${PORT}`);
+  logger.info(`Server running on port ${PORT}`);
+
+  // Optionally run check on startup if needed, but might be annoying during dev restarts.
+  // I will leave it to manual trigger or schedule, unless user specifically asked for "run on boot".
+  // User didn't say "run on boot", just "server ... existing ... check done -> alarm".
 });
 
-// 에러 핸들링
-process.on("uncaughtException", (error) => {
-  logger.error("Uncaught Exception:", error);
-  process.exit(1);
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-  logger.error("Unhandled Rejection at:", promise, "reason:", reason);
+// For Render/Heroku etc
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM received. Shutting down.");
+  process.exit(0);
 });

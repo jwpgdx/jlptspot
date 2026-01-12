@@ -1,32 +1,31 @@
 {
-  "name": "jlpt-monitor",
+  "name": "attendance-check-service",
   "version": "1.0.0",
-  "description": "일본어 능력시험 접수현황 모니터링 시스템",
+  "description": "Daily Attendance Check Automation Service",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "headless": "node headless.js",
-    "monitor": "node headless.js --regions=15 --level=N2 --interval=15 --year=2025 --times=2 --cookie=\"PHPSESSID=catpoa3cvsv1eenbqmncpkelje; nowdays=read_2025-09-19; pop=NO\" --telegram-token=\"8078482638:AAFJDMfo-UaKj1-AaJAsAvolEtBic_PTDS0\" --telegram-chat=\"6632560721\"",
-    "monitor:prod": "node headless.js --regions=15 --level=N2 --interval=60 --year=2025 --times=2 --cookie=\"$COOKIE\" --telegram-token=\"$TELEGRAM_TOKEN\" --telegram-chat=\"$TELEGRAM_CHAT\""
+    "check": "node scripts/run-check.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "axios": "^1.6.0",
+    "date-fns": "^2.30.0",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "node-cron": "^3.0.3",
-    "dotenv": "^16.3.1",
-    "winston": "^3.11.0",
-    "cheerio": "^1.0.0-rc.12",
-    "node-telegram-bot-api": "^0.64.0"
+    "node-telegram-bot-api": "^0.64.0",
+    "playwright": "^1.40.0",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
   },
   "keywords": [
-    "jlpt",
-    "monitor",
-    "japanese",
-    "exam"
+    "attendance",
+    "automation",
+    "playwright"
   ],
   "author": "",
   "license": "MIT"

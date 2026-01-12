@@ -3,7 +3,7 @@ services:
     name: jlpt-monitor
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install && npx playwright install --with-deps
     startCommand: npm start
     envVars:
       - key: NODE_ENV
